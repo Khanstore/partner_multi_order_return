@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="sequence_return_order" model="ir.sequence">
+        <field name="name">Return Order</field>
+        <field name="code">return.order</field>
+        <field name="prefix">RET/%(year)s/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+    <record id="view_return_order_tree" model="ir.ui.view">
+        <field name="name">return.order.list</field>
+        <field name="model">return.order</field>
+        <field name="arch" type="xml">
+            <list string="Multi Order Returns">
+                <field name="name"/>
+                <field name="date"/>
+                <field name="partner_id"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'processed'"
+                       decoration-info="state == 'draft'"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_return_order_form" model="ir.ui.view">
+        <field name="name">return.order.form</field>
+        <field name="model">return.order</field>
+        <field name="arch" type="xml">
+            <form string="Multi Order Return">
+                <header>
+                    <button name="action_set_draft" type="object"
+                            string="Set to Draft" invisible="state != 'processed'"
+                            groups="stock.group_stock_manager"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,processed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="partner_id" readonly="state == 'processed'"/>
+                            <field name="date" readonly="state == 'processed'"/>
+                        </group>
+                        <group>
+                            <field name="company_id" groups="base.group_multi_company"
+                                   readonly="state == 'processed'"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Return Products">
+                            <field name="line_ids" readonly="state == 'processed'">
+                                <list editable="bottom">
+                                    <field name="product_id"/>
+                                    <field name="qty_returned"/>
+                                    <field name="state" widget="badge"
+                                           decoration-success="state == 'processed'"
+                                           decoration-info="state == 'draft'"/>
+                                    <field name="picking_id" string="Return Picking"
+                                           readonly="1" widget="many2one"/>
+                                    <field name="credit_note_id" string="Credit Note"
+                                           readonly="1" widget="many2one"/>
+                                    <button name="action_open_history_wizard"
+                                            type="object" string="Process Return"
+                                            icon="fa-undo" class="btn-primary"
+                                            invisible="state != 'draft'"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_return_order_search" model="ir.ui.view">
+        <field name="name">return.order.search</field>
+        <field name="model">return.order</field>
+        <field name="arch" type="xml">
+            <search string="Search Returns">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <filter name="draft" string="Draft"
+                        domain="[('state', '=', 'draft')]"/>
+                <filter name="processed" string="Processed"
+                        domain="[('state', '=', 'processed')]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_partner" string="Customer"
+                            context="{'group_by': 'partner_id'}"/>
+                    <filter name="group_state" string="Status"
+                            context="{'group_by': 'state'}"/>
+                    <filter name="group_date" string="Return Date"
+                            context="{'group_by': 'date'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_return_order_history_wizard_form" model="ir.ui.view">
+        <field name="name">return.order.history.wizard.form</field>
+        <field name="model">return.order.history.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Select Historical Return">
+                <group>
+                    <group>
+                        <field name="return_line_id" invisible="1"/>
+                        <field name="partner_id"/>
+                        <field name="product_id"/>
+                        <field name="company_id" invisible="1"/>
+                    </group>
+                    <group>
+                        <field name="picking_id"/>
+                        <field name="invoice_id"/>
+                        <field name="qty_returned"/>
+                        <field name="tracking" invisible="1"/>
+                        <field name="lot_id"
+                               invisible="tracking == 'none'"
+                               required="tracking != 'none'"/>
+                    </group>
+                </group>
+                <group string="Paid Invoice Handling">
+                    <field name="payment_treatment"
+                           invisible="invoice_id.payment_state != 'paid'"/>
+                    <field name="payment_journal_id"
+                           invisible="invoice_id.payment_state != 'paid' or payment_treatment != 'refund'"
+                           required="invoice_id.payment_state == 'paid' and payment_treatment == 'refund'"/>
+                </group>
+                <footer>
+                    <button name="action_confirm_return" type="object"
+                            string="Confirm Return" class="btn-primary"/>
+                    <button string="Cancel" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_return_order" model="ir.actions.act_window">
+        <field name="name">Multi Order Returns</field>
+        <field name="res_model">return.order</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_return_order_search"/>
+    </record>
+
+    <menuitem id="menu_return_order_root" name="Multi Order Returns"
+              parent="stock.menu_stock_root" sequence="85"
+              groups="stock.group_stock_user"/>
+    <menuitem id="menu_return_order" name="Return Orders"
+              parent="menu_return_order_root" action="action_return_order"
+              sequence="10" groups="stock.group_stock_user"/>
+</odoo>
