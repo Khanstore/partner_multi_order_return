@@ -30,9 +30,6 @@
         <field name="arch" type="xml">
             <form string="Multi Order Return">
                 <header>
-                    <button name="action_set_draft" type="object"
-                            string="Set to Draft" invisible="state != 'processed'"
-                            groups="stock.group_stock_manager"/>
                     <field name="state" widget="statusbar"
                            statusbar_visible="draft,processed"/>
                 </header>
@@ -51,7 +48,7 @@
                         </group>
                     </group>
                     <notebook>
-                        <page string="Return Products">
+                        <page string="Return Products" invisible="not partner_id">
                             <field name="line_ids" readonly="state == 'processed'">
                                 <list editable="bottom">
                                     <field name="product_id"/>
@@ -59,13 +56,19 @@
                                     <field name="state" widget="badge"
                                            decoration-success="state == 'processed'"
                                            decoration-info="state == 'draft'"/>
-                                    <field name="picking_id" string="Return Picking"
-                                           readonly="1" widget="many2one"/>
-                                    <field name="credit_note_id" string="Credit Note"
-                                           readonly="1" widget="many2one"/>
+                                    <field name="picking_ids" string="Return Pickings"
+                                           widget="many2many_tags" readonly="1"/>
+                                    <button name="action_open_return_pickings" type="object"
+                                            string="Open" class="btn-link"
+                                            invisible="not picking_ids"/>
+                                    <field name="credit_note_ids" string="Credit Notes"
+                                           widget="many2many_tags" readonly="1"/>
+                                    <button name="action_open_credit_notes" type="object"
+                                            string="Open" class="btn-link"
+                                            invisible="not credit_note_ids"/>
                                     <button name="action_open_history_wizard"
-                                            type="object" string="Process Return"
-                                            icon="fa-undo" class="btn-primary"
+                                            type="object" string="Select Deliveries"
+                                            icon="fa-list-check" class="btn-primary"
                                             invisible="state != 'draft'"/>
                                 </list>
                             </field>
@@ -103,34 +106,92 @@
         <field name="name">return.order.history.wizard.form</field>
         <field name="model">return.order.history.wizard</field>
         <field name="arch" type="xml">
-            <form string="Select Historical Return">
-                <group>
+            <form string="Select Historical Delivery and Invoice">
+                <sheet>
                     <group>
-                        <field name="return_line_id" invisible="1"/>
-                        <field name="partner_id"/>
-                        <field name="product_id"/>
-                        <field name="company_id" invisible="1"/>
+                        <group>
+                            <field name="return_line_id" invisible="1"/>
+                            <field name="company_id" invisible="1"/>
+                            <field name="partner_id" readonly="1"/>
+                            <field name="product_id" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="qty_returned" string="Total Return Quantity"/>
+                            <field name="allocated_qty" readonly="1"/>
+                            <field name="allocation_complete" invisible="1"/>
+                            <field name="selected_delivery_count" readonly="1"/>
+                            <field name="tracking" invisible="1"/>
+                        </group>
                     </group>
+                    <separator string="Delivery Date Range"/>
                     <group>
-                        <field name="picking_id"/>
-                        <field name="invoice_id"/>
-                        <field name="qty_returned"/>
-                        <field name="tracking" invisible="1"/>
-                        <field name="lot_id"
-                               invisible="tracking == 'none'"
-                               required="tracking != 'none'"/>
+                        <field name="date_filter" widget="radio"
+                               options="{'horizontal': true}"/>
+                        <field name="filter_month" invisible="date_filter != 'month'"
+                               required="date_filter == 'month'"/>
+                        <field name="filter_quarter" invisible="date_filter != 'quarter'"
+                               required="date_filter == 'quarter'"/>
+                        <field name="filter_year"
+                               invisible="date_filter == 'all'"
+                               required="date_filter != 'all'"/>
                     </group>
-                </group>
-                <group string="Paid Invoice Handling">
-                    <field name="payment_treatment"
-                           invisible="invoice_id.payment_state != 'paid'"/>
-                    <field name="payment_journal_id"
-                           invisible="invoice_id.payment_state != 'paid' or payment_treatment != 'refund'"
-                           required="invoice_id.payment_state == 'paid' and payment_treatment == 'refund'"/>
-                </group>
+                    <div class="alert alert-info" role="alert">
+                        The date filter applies to the original completed delivery order date.
+                        Only deliveries with remaining returnable quantity and a uniquely
+                        linked posted customer invoice are listed. Allocation follows the
+                        method configured in Settings: FIFO, LIFO or Manual.
+                    </div>
+                    <field name="selection_note" nolabel="1"
+                           invisible="not selection_note"/>
+                    <separator string="Historical Deliveries"/>
+                    <field name="delivery_line_ids" nolabel="1">
+                        <list editable="bottom" create="0" delete="0"
+                              decoration-success="selected">
+                            <field name="selected" string="Select"/>
+                            <!--
+                                Odoo's editable One2many list serializes edited rows back
+                                to the server. Readonly fields are otherwise omitted from
+                                the create commands, which recreates incomplete transient
+                                rows and loses the original stock move / invoice links.
+                                force_save keeps the server-generated candidate values.
+                            -->
+                            <field name="source_move_id" column_invisible="1" force_save="1"/>
+                            <field name="invoice_line_id" column_invisible="1" force_save="1"/>
+                            <field name="picking_id" string="Delivery Order" force_save="1"/>
+                            <field name="delivery_date"/>
+                            <field name="invoice_id" string="Historical Invoice" force_save="1"/>
+                            <field name="price_unit" string="Original Unit Rate" optional="show" force_save="1"/>
+                            <field name="discounted_price" string="Rate After Discount" optional="show" force_save="1"/>
+                            <field name="lot_id" string="Lot / Serial"
+                                   column_invisible="parent.tracking == 'none'" force_save="1"/>
+                            <field name="delivered_qty" sum="Delivered" force_save="1"/>
+                            <field name="previously_returned_qty" sum="Returned" force_save="1"/>
+                            <field name="available_qty" sum="Available" force_save="1"/>
+                            <field name="allocated_qty" sum="Allocated" force_save="1"/>
+                        </list>
+                    </field>
+                    <group string="Allocation Summary">
+                        <group>
+                            <field name="qty_returned" readonly="1"/>
+                            <field name="allocated_qty" readonly="1"/>
+                            <field name="allocation_complete" widget="boolean" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="selected_delivery_count" readonly="1"/>
+                        </group>
+                    </group>
+                    <separator string="Paid Invoice Handling"/>
+                    <group>
+                        <field name="payment_treatment"/>
+                        <field name="payment_journal_id"
+                               invisible="payment_treatment != 'refund'"
+                               required="payment_treatment == 'refund'"/>
+                    </group>
+                </sheet>
                 <footer>
                     <button name="action_confirm_return" type="object"
-                            string="Confirm Return" class="btn-primary"/>
+                            string="Confirm Return" class="btn-primary"
+                            icon="fa-check"/>
                     <button string="Cancel" special="cancel" class="btn-secondary"/>
                 </footer>
             </form>

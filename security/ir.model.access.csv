@@ -2,3 +2,9 @@ id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_return_order_user,return.order user,model_return_order,stock.group_stock_user,1,1,1,0
 access_return_order_line_user,return.order.line user,model_return_order_line,stock.group_stock_user,1,1,1,0
 access_return_history_wizard_user,return.order.history.wizard user,model_return_order_history_wizard,stock.group_stock_user,1,1,1,1
+access_return_history_wizard_line_user,return.order.history.wizard.line user,model_return_order_history_wizard_line,stock.group_stock_user,1,1,1,1
+
+access_purchase_return_order_user,purchase.return.order user,model_purchase_return_order,stock.group_stock_user,1,1,1,0
+access_purchase_return_order_line_user,purchase.return.order.line user,model_purchase_return_order_line,stock.group_stock_user,1,1,1,0
+access_purchase_return_history_wizard_user,purchase.return.history.wizard user,model_purchase_return_history_wizard,stock.group_stock_user,1,1,1,1
+access_purchase_return_history_wizard_line_user,purchase.return.history.wizard.line user,model_purchase_return_history_wizard_line,stock.group_stock_user,1,1,1,1

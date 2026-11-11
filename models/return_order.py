@@ -85,10 +85,30 @@ class ReturnOrderLine(models.Model):
         "account.move", string="Historical Invoice", readonly=True, copy=False,
     )
     credit_note_id = fields.Many2one(
-        "account.move", string="Credit Note", readonly=True, copy=False,
+        "account.move", string="Primary Credit Note", readonly=True, copy=False,
+    )
+    picking_ids = fields.Many2many(
+        "stock.picking", "return_order_line_picking_rel",
+        "return_line_id", "picking_id", string="Return Pickings",
+        readonly=True, copy=False,
+    )
+    invoice_ids = fields.Many2many(
+        "account.move", "return_order_line_invoice_rel",
+        "return_line_id", "invoice_id", string="Historical Invoices",
+        readonly=True, copy=False,
+    )
+    credit_note_ids = fields.Many2many(
+        "account.move", "return_order_line_credit_rel",
+        "return_line_id", "credit_note_id", string="Credit Notes",
+        readonly=True, copy=False,
     )
     lot_id = fields.Many2one(
-        "stock.lot", string="Lot / Serial", readonly=True, copy=False,
+        "stock.lot", string="Primary Lot / Serial", readonly=True, copy=False,
+    )
+    lot_ids = fields.Many2many(
+        "stock.lot", "return_order_line_lot_rel",
+        "return_line_id", "lot_id", string="Lots / Serials",
+        readonly=True, copy=False,
     )
     state = fields.Selection(
         [("draft", "Draft"), ("processed", "Processed")],
@@ -106,15 +126,45 @@ class ReturnOrderLine(models.Model):
             if line.product_id and line.product_id.type == "service":
                 raise ValidationError(_("Services cannot be returned to inventory."))
 
-    @api.constrains("state", "picking_id", "credit_note_id")
+    @api.constrains(
+        "state", "picking_id", "credit_note_id", "picking_ids", "credit_note_ids"
+    )
     def _check_processed_documents(self):
         for line in self:
             if line.state == "processed" and (
-                not line.picking_id or not line.credit_note_id
+                not line.picking_ids or not line.credit_note_ids
             ):
                 raise ValidationError(
                     _("A processed line must have both a return picking and credit note.")
                 )
+
+    def action_open_return_pickings(self):
+        """Open all stock return pickings linked to this return line."""
+        self.ensure_one()
+        if not self.picking_ids:
+            raise UserError(_("There are no return pickings linked to this line."))
+        return {
+            "type": "ir.actions.act_window",
+            "name": _("Return Pickings"),
+            "res_model": "stock.picking",
+            "view_mode": "list,form",
+            "domain": [("id", "in", self.picking_ids.ids)],
+            "target": "current",
+        }
+
+    def action_open_credit_notes(self):
+        """Open all credit notes linked to this return line."""
+        self.ensure_one()
+        if not self.credit_note_ids:
+            raise UserError(_("There are no credit notes linked to this line."))
+        return {
+            "type": "ir.actions.act_window",
+            "name": _("Credit Notes"),
+            "res_model": "account.move",
+            "view_mode": "list,form",
+            "domain": [("id", "in", self.credit_note_ids.ids)],
+            "target": "current",
+        }
 
     def action_open_history_wizard(self):
         self.ensure_one()
@@ -135,3 +185,16 @@ class ReturnOrderLine(models.Model):
                 "default_qty_returned": self.qty_returned,
             },
         }
+
+
+class ResConfigSettings(models.TransientModel):
+    _inherit = "res.config.settings"
+
+    # Store the setting in ir.config_parameter. This avoids adding a physical
+    # column to res_company during module installation/upgrade.
+    return_allocation_method = fields.Selection(
+        [("fifo", "FIFO"), ("lifo", "LIFO"), ("manual", "Manual")],
+        string="Return Allocation Method",
+        default="manual",
+        config_parameter="partner_multi_order_return.return_allocation_method",
+    )

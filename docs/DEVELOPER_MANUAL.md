@@ -6,18 +6,19 @@
 |---|---|---|
 | Return header | `return.order` | Customer, date, company, overall state |
 | Return line | `return.order.line` | Product, requested quantity, generated documents |
-| Selection wizard | `return.order.history.wizard` | Historical delivery/invoice selection and processing |
+| Selection wizard | `return.order.history.wizard` | Month/quarter/year/all-time filtering, multi-delivery selection, FIFO allocation and processing |
+| Candidate rows | `return.order.history.wizard.line` | One selectable delivery/lot row with availability and allocation quantities |
 | Stock integration | `stock.return.picking` | Native Odoo return move creation |
 | Accounting integration | `account.move` | Posted customer credit note |
 | Optional payout | `account.payment.register` | Cash/bank refund registration |
 
 ## Extension points
 
-- Extend `_compute_eligible_records` to support custom sale/invoice linkage rules or additional picking types.
-- Extend `_get_original_move` if the business requires explicit selection among multiple moves for the same product.
-- Extend `_get_invoice_line` to expose an invoice-line selector where duplicate product lines are legitimate.
+- Extend `_candidate_values` and `_get_invoice_for_move` to support custom sale/invoice linkage rules or additional picking types.
+- Extend the candidate-row model if deliveries containing multiple stock moves for the same product must be supported.
+- Extend invoice-line matching if one sale line is split across multiple posted invoices or duplicate product lines are legitimate.
 - Extend `_create_credit_note` for localization-specific fiscal position, withholding, analytic, or rounding requirements.
-- Extend `_register_refund_payment` for approval workflows or custom payment providers.
+- Extend the payment registration block in `_create_credit_note` for approval workflows or custom payment providers.
 
 ## Transaction and error handling
 
@@ -27,13 +28,13 @@ A payment registration error is raised to the caller. Because the complete opera
 
 ## Stock valuation
 
-The module does not write stock valuation layers or accounting journal items directly. It creates the return through Odoo's stock return wizard and leaves the resulting picking awaiting warehouse validation. On validation, Odoo applies the product category valuation method, stock accounts, valuation layers, and automated valuation entries.
+The module does not write stock valuation layers or accounting journal items directly. On Odoo 18 it invokes `stock.return.picking.action_create_returns()` (the native wizard action) and leaves the resulting picking awaiting warehouse validation. It subtracts both completed returns and non-cancelled pending return moves when calculating availability, preventing the same units from being selected while an earlier return is still open. On validation, Odoo applies the product category valuation method, stock accounts, valuation layers, and automated valuation entries.
 
 Do not replace this with direct `stock.quant` writes or manually created valuation journal entries.
 
 ## Accounting calculation
 
-The credit note line copies the selected invoice line's:
+The credit note line copies the uniquely linked historical invoice line's:
 - product and description,
 - quantity requested for return,
 - unit price,

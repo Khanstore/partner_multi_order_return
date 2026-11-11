@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="rule_return_order_company" model="ir.rule">
+        <field name="name">Return orders: allowed companies</field>
+        <field name="model_id" ref="model_return_order"/>
+        <field name="groups" eval="[(4, ref('stock.group_stock_user'))]"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_return_order_line_company" model="ir.rule">
+        <field name="name">Return order lines: allowed companies</field>
+        <field name="model_id" ref="model_return_order_line"/>
+        <field name="groups" eval="[(4, ref('stock.group_stock_user'))]"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_return_history_wizard_company" model="ir.rule">
+        <field name="name">Return history wizard: allowed companies</field>
+        <field name="model_id" ref="model_return_order_history_wizard"/>
+        <field name="groups" eval="[(4, ref('stock.group_stock_user'))]"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_return_history_wizard_line_company" model="ir.rule">
+        <field name="name">Return history wizard lines: allowed companies</field>
+        <field name="model_id" ref="model_return_order_history_wizard_line"/>
+        <field name="groups" eval="[(4, ref('stock.group_stock_user'))]"/>
+        <field name="domain_force">[('wizard_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_purchase_return_order_company" model="ir.rule">
+        <field name="name">Purchase returns: allowed companies</field>
+        <field name="model_id" ref="model_purchase_return_order"/>
+        <field name="groups" eval="[(4, ref('stock.group_stock_user'))]"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_purchase_return_order_line_company" model="ir.rule">
+        <field name="name">Purchase return lines: allowed companies</field>
+        <field name="model_id" ref="model_purchase_return_order_line"/>
+        <field name="groups" eval="[(4, ref('stock.group_stock_user'))]"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_purchase_return_history_wizard_company" model="ir.rule">
+        <field name="name">Purchase return history wizard: allowed companies</field>
+        <field name="model_id" ref="model_purchase_return_history_wizard"/>
+        <field name="groups" eval="[(4, ref('stock.group_stock_user'))]"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_purchase_return_history_wizard_line_company" model="ir.rule">
+        <field name="name">Purchase return history lines: allowed companies</field>
+        <field name="model_id" ref="model_purchase_return_history_wizard_line"/>
+        <field name="groups" eval="[(4, ref('stock.group_stock_user'))]"/>
+        <field name="domain_force">[('wizard_id.company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

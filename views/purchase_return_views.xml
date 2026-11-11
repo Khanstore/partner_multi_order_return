@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="sequence_purchase_return_order" model="ir.sequence">
+        <field name="name">Purchase Return</field>
+        <field name="code">purchase.return.order</field>
+        <field name="prefix">PRET/%(year)s/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+    <record id="view_purchase_return_order_list" model="ir.ui.view">
+        <field name="name">purchase.return.order.list</field>
+        <field name="model">purchase.return.order</field>
+        <field name="arch" type="xml">
+            <list string="Purchase Returns">
+                <field name="name"/>
+                <field name="date"/>
+                <field name="partner_id"/>
+                <field name="state" widget="badge" decoration-success="state == 'processed'" decoration-info="state == 'draft'"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_purchase_return_order_form" model="ir.ui.view">
+        <field name="name">purchase.return.order.form</field>
+        <field name="model">purchase.return.order</field>
+        <field name="arch" type="xml">
+            <form string="Purchase Return">
+                <header><field name="state" widget="statusbar" statusbar_visible="draft,processed"/></header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name" readonly="1"/></h1></div>
+                    <group>
+                        <group><field name="partner_id" readonly="state == 'processed'"/><field name="date" readonly="state == 'processed'"/></group>
+                        <group><field name="company_id" groups="base.group_multi_company" readonly="state == 'processed'"/></group>
+                    </group>
+                    <notebook>
+                        <page string="Return Products" invisible="not partner_id">
+                            <field name="line_ids" readonly="state == 'processed'">
+                                <list editable="bottom">
+                                    <field name="product_id"/>
+                                    <field name="qty_returned"/>
+                                    <field name="state" widget="badge" decoration-success="state == 'processed'" decoration-info="state == 'draft'"/>
+                                    <field name="picking_ids" string="Return Pickings" widget="many2many_tags" readonly="1"/>
+                                    <button name="action_open_pickings" type="object" string="Open" class="btn-link" invisible="not picking_ids"/>
+                                    <field name="bill_ids" string="Vendor Bills" widget="many2many_tags" readonly="1"/>
+                                    <field name="refund_ids" string="Vendor Credit Notes" widget="many2many_tags" readonly="1"/>
+                                    <button name="action_open_refunds" type="object" string="Open" class="btn-link" invisible="not refund_ids"/>
+                                    <button name="action_open_history_wizard" type="object" string="Select Receipts" icon="fa-list-check" class="btn-primary" invisible="state != 'draft'"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_purchase_return_order_search" model="ir.ui.view">
+        <field name="name">purchase.return.order.search</field>
+        <field name="model">purchase.return.order</field>
+        <field name="arch" type="xml">
+            <search string="Search Purchase Returns">
+                <field name="name"/><field name="partner_id"/>
+                <filter name="draft" string="Draft" domain="[('state', '=', 'draft')]"/>
+                <filter name="processed" string="Processed" domain="[('state', '=', 'processed')]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_vendor" string="Vendor" context="{'group_by': 'partner_id'}"/>
+                    <filter name="group_state" string="Status" context="{'group_by': 'state'}"/>
+                    <filter name="group_date" string="Return Date" context="{'group_by': 'date'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_purchase_return_history_wizard_form" model="ir.ui.view">
+        <field name="name">purchase.return.history.wizard.form</field>
+        <field name="model">purchase.return.history.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Select Historical Receipt and Vendor Bill">
+                <sheet>
+                    <group>
+                        <group><field name="return_line_id" invisible="1"/><field name="company_id" invisible="1"/><field name="partner_id" readonly="1"/><field name="product_id" readonly="1"/></group>
+                        <group><field name="qty_returned"/><field name="allocated_qty" readonly="1"/><field name="allocation_complete" invisible="1"/><field name="selected_receipt_count" readonly="1"/><field name="tracking" invisible="1"/></group>
+                    </group>
+                    <separator string="Receipt Date Range"/>
+                    <group>
+                        <field name="date_filter" widget="radio" options="{'horizontal': true}"/>
+                        <field name="filter_month" invisible="date_filter != 'month'" required="date_filter == 'month'"/>
+                        <field name="filter_quarter" invisible="date_filter != 'quarter'" required="date_filter == 'quarter'"/>
+                        <field name="filter_year" invisible="date_filter == 'all'" required="date_filter != 'all'"/>
+                    </group>
+                    <div class="alert alert-info" role="alert">
+                        The date range applies to the original completed incoming receipt. Only quantities with a remaining stock balance and a linked posted vendor bill are listed. Allocation uses the shared FIFO, LIFO or Manual setting. Tracked products retain their original lot or serial number.
+                    </div>
+                    <field name="selection_note" nolabel="1" invisible="not selection_note"/>
+                    <separator string="Historical Receipts"/>
+                    <field name="receipt_line_ids" nolabel="1">
+                        <list editable="bottom" create="0" delete="0" decoration-success="selected">
+                            <field name="selected" string="Select"/>
+                            <field name="source_move_id" column_invisible="1" force_save="1"/>
+                            <field name="purchase_line_id" column_invisible="1" force_save="1"/>
+                            <field name="bill_line_id" column_invisible="1" force_save="1"/>
+                            <field name="picking_id" string="Receipt" force_save="1"/>
+                            <field name="receipt_date"/>
+                            <field name="bill_id" string="Vendor Bill" force_save="1"/>
+                            <field name="price_unit" string="Original Unit Rate" optional="show" force_save="1"/>
+                            <field name="lot_id" string="Lot / Serial" column_invisible="parent.tracking == 'none'" force_save="1"/>
+                            <field name="delivered_qty" sum="Received" force_save="1"/>
+                            <field name="previously_returned_qty" sum="Returned" force_save="1"/>
+                            <field name="available_qty" sum="Available" force_save="1"/>
+                            <field name="allocated_qty" sum="Allocated"/>
+                        </list>
+                    </field>
+                    <group string="Allocation Summary"><field name="qty_returned" readonly="1"/><field name="allocated_qty" readonly="1"/><field name="allocation_complete" readonly="1"/><field name="selected_receipt_count" readonly="1"/></group>
+                    <separator string="Paid Vendor Bill Handling"/>
+                    <group><field name="payment_treatment"/><field name="payment_journal_id" invisible="payment_treatment != 'refund'" required="payment_treatment == 'refund'"/></group>
+                </sheet>
+                <footer>
+                    <button name="action_confirm_return" type="object" string="Confirm Purchase Return" class="btn-primary" icon="fa-check"/>
+                    <button string="Cancel" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_purchase_return_order" model="ir.actions.act_window">
+        <field name="name">Purchase Returns</field>
+        <field name="res_model">purchase.return.order</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_purchase_return_order_search"/>
+    </record>
+    <menuitem id="menu_purchase_return_order" name="Purchase Returns" parent="menu_return_order_root" action="action_purchase_return_order" sequence="20" groups="stock.group_stock_user"/>
+</odoo>
